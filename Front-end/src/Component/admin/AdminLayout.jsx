@@ -36,6 +36,17 @@ const AdminLayout = () => {
     localStorage.setItem('adminNotifications', JSON.stringify(notifications));
   }, [notifications]);
 
+  // Automatic cleanup of all notifications every 24 hours
+  useEffect(() => {
+    const cleanupInterval = setInterval(() => {
+      console.log('🧹 Running automatic notification cleanup - clearing all notifications');
+      setNotifications([]);
+      localStorage.removeItem('adminNotifications');
+    }, 24 * 60 * 60 * 1000); // Run every 24 hours
+
+    return () => clearInterval(cleanupInterval);
+  }, []);
+
   // Polling notifications from backend notification endpoint
   useEffect(() => {
     console.log('📊 Starting polling for notifications');
@@ -62,13 +73,12 @@ const AdminLayout = () => {
     };
   }, []);
 
-  const getNavigatePath = (type) => {
-    switch (type) {
+  const getNavigatePath = (notification) => {
+    switch (notification.type) {
       case 'order':
       case 'cancelled':
-        return '/admin/orders';
       case 'user_update':
-        return '/admin/users';
+        return notification.referenceId ? `/admin/orders/${notification.referenceId}` : '/admin/orders';
       default:
         return '/admin';
     }
@@ -79,11 +89,23 @@ const AdminLayout = () => {
     try {
       await axios.delete(`/api/admin/notifications/${notification.id}`);
       setNotifications(prev => prev.filter(n => n.id !== notification.id));
-      // setIsNotificationOpen(false); // do not close if they only want to mark read
-      // But the user requested: "notification disappear instead of refresh"
-      // They didn't specifically say we shouldn't navigate if they click the whole card, but let's just make it disappear.
     } catch (err) {
       console.error("Failed to mark as read", err);
+    }
+  };
+
+  const handleRowClick = async (e, notification) => {
+    e.stopPropagation();
+    try {
+      await axios.delete(`/api/admin/notifications/${notification.id}`);
+      setNotifications(prev => prev.filter(n => n.id !== notification.id));
+      navigate(getNavigatePath(notification));
+      setIsNotificationOpen(false);
+    } catch (err) {
+      console.error("Failed to mark as read within row click", err);
+      // Even on failure to delete, proceed to navigation
+      navigate(getNavigatePath(notification));
+      setIsNotificationOpen(false);
     }
   };
 
@@ -140,8 +162,8 @@ const AdminLayout = () => {
             <div className="w-10 h-10 bg-linear-to-br from-green-400 to-emerald-600 rounded-xl flex items-center justify-center shadow-lg shadow-green-500/20 text-white">
               <Sprout size={22} strokeWidth={2.5} />
             </div>
-            <h1 className="text-xl font-black tracking-tighter italic uppercase" 
-             
+            <h1 className="text-xl font-black tracking-tighter italic uppercase"
+
             >Seed<span className="text-green-500">Store</span></h1>
           </div>
 
@@ -221,7 +243,7 @@ const AdminLayout = () => {
             </div>
 
             <div className="relative">
-              <button 
+              <button
                 onClick={() => setIsNotificationOpen(!isNotificationOpen)}
                 className="relative w-9 h-9 md:w-10 md:h-10 rounded-full bg-slate-50 flex items-center justify-center text-slate-500 hover:text-green-600 transition-all border border-slate-100"
               >
@@ -276,15 +298,15 @@ const AdminLayout = () => {
                         return (
                           <div key={notification.id} className="p-3 hover:bg-slate-50 rounded-xl cursor-default border-b border-slate-100 last:border-b-0 group">
                             <div className="flex items-start gap-3">
-                              <div className={`w-8 h-8 ${getBgColor(notification.type)} rounded-full flex items-center justify-center flex-shrink-0 cursor-pointer`} onClick={() => { navigate(getNavigatePath(notification.type)); setIsNotificationOpen(false); }}>
+                              <div className={`w-8 h-8 ${getBgColor(notification.type)} rounded-full flex items-center justify-center flex-shrink-0 cursor-pointer`} onClick={(e) => handleRowClick(e, notification)}>
                                 {getIcon(notification.type)}
                               </div>
-                              <div className="flex-1 min-w-0 pr-2 cursor-pointer" onClick={() => { navigate(getNavigatePath(notification.type)); setIsNotificationOpen(false); }}>
+                              <div className="flex-1 min-w-0 pr-2 cursor-pointer" onClick={(e) => handleRowClick(e, notification)}>
                                 <p className="text-sm font-semibold text-slate-900">{notification.message}</p>
                                 <p className="text-xs text-slate-500 mt-1">{notification.time}</p>
                               </div>
-                              <button 
-                                onClick={(e) => handleNotificationClick(e, notification)} 
+                              <button
+                                onClick={(e) => handleNotificationClick(e, notification)}
                                 className="flex-shrink-0 text-xs font-bold text-slate-400 hover:text-green-600 bg-slate-100 hover:bg-green-100 px-2 py-1 rounded-md opacity-0 group-hover:opacity-100 transition-all"
                                 title="Mark as read"
                               >
@@ -298,7 +320,7 @@ const AdminLayout = () => {
                   </div>
                   {notifications.length > 0 && (
                     <div className="p-3 border-t border-slate-200">
-                      <button 
+                      <button
                         onClick={handleMarkAllAsRead}
                         className="w-full py-2 bg-slate-900 text-white rounded-xl font-semibold text-sm hover:bg-slate-800 transition-colors"
                       >
