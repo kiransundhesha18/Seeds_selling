@@ -68,7 +68,7 @@ exports.createOrderFromCart = async (req, res) => {
       userId,
       addressId: savedAddress._id,
       totalAmount,
-      orderStatus: "pending",
+      orderStatus: "processing",
       paymentStatus: "pending",
     });
 
@@ -89,8 +89,10 @@ exports.createOrderFromCart = async (req, res) => {
 
     // Create a notification for the admin
     await Notification.create({
-      message: `A new order has been placed by user snippet`,
-      type: "order"
+      message: `A new order has been placed`,
+      type: "order",
+      referenceId: order._id,
+      onModel: "Order"
     });
 
     return res.status(201).json({
@@ -213,7 +215,9 @@ exports.updateOrderAddress = async (req, res) => {
 
     await Notification.create({
       message: `A user has updated their order address`,
-      type: "user_update"
+      type: "user_update",
+      referenceId: order._id,
+      onModel: "Order"
     });
 
     return res.status(200).json({ message: "Address updated", order: updatedOrder });
@@ -277,9 +281,29 @@ exports.cancelOrderByUser = async (req, res) => {
     });
     await order.save();
 
+    // Increment inventory only if stock was actually reduced 
+    // (i.e. COD order, or verified Razorpay order)
+    const Payment = require("../models/PaymentModel");
+    const payment = await Payment.findOne({ orderId: order._id });
+    const stockWasReduced = payment && (payment.paymentMethod === "cod" || payment.paymentStatus === "success");
+
+    if (stockWasReduced) {
+      const itemsToRestore = await OrderItem.find({ orderId: order._id });
+      for (const item of itemsToRestore) {
+        if (item.productId) {
+          await Product.findByIdAndUpdate(
+            item.productId,
+            { $inc: { stock: item.quantity } }
+          );
+        }
+      }
+    }
+
     await Notification.create({
       message: `An order has been cancelled by the customer`,
-      type: "cancelled"
+      type: "cancelled",
+      referenceId: order._id,
+      onModel: "Order"
     });
 
     const updatedOrder = await Order.findById(order._id)
@@ -379,7 +403,9 @@ exports.createBuyNowOrder = async (req, res) => {
 
     await Notification.create({
       message: `A new Buy Now order has been placed`,
-      type: "order"
+      type: "order",
+      referenceId: order._id,
+      onModel: "Order"
     });
 
     const populatedItems = [
