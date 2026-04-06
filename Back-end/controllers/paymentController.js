@@ -128,7 +128,9 @@ exports.createRazorpayOrder = async (req, res) => {
 
       await Notification.create({
         message: `A new COD order has been placed`,
-        type: "order"
+        type: "order",
+        referenceId: order._id,
+        onModel: "Order"
       });
 
       return res.status(201).json({
@@ -238,7 +240,9 @@ exports.verifyRazorpayPayment = async (req, res) => {
 
     await Notification.create({
       message: `A new order has been placed via Razorpay`,
-      type: "order"
+      type: "order",
+      referenceId: orderId,
+      onModel: "Order"
     });
 
     return res.status(200).json({ message: "Payment verified successfully", orderId });
