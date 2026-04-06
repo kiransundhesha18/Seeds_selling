@@ -12,25 +12,36 @@ import {
   DollarSign,
   IndianRupee,
   TrendingUp,
+  TrendingDown,
   Wallet,
   BarChart3,
   CheckCircle2,
+  Target,
 } from "lucide-react";
+import { XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
 
   const [data, setData] = useState({
     stats: {},
+    analytics: null,
+    insights: null,
     loading: true,
   });
 
   useEffect(() => {
     const loadDashboard = async () => {
       try {
-        const statsRes = await axios.get("/api/admin/stats");
+        const [statsRes, analyticsRes, insightsRes] = await Promise.all([
+          axios.get("/api/admin/stats"),
+          axios.get("/api/admin/analytics").catch(() => ({ data: null })),
+          axios.get("/api/admin/dashboard-insights").catch(() => ({ data: null }))
+        ]);
         setData({
           stats: statsRes.data || {},
+          analytics: analyticsRes.data || null,
+          insights: insightsRes.data || null,
           loading: false,
         });
       } catch (e) {
@@ -42,7 +53,7 @@ const AdminDashboard = () => {
     loadDashboard();
   }, []);
 
-  const { stats, loading } = data;
+  const { stats, analytics, insights, loading } = data;
 
   const formatCurrency = (amount) =>
     new Intl.NumberFormat("en-IN", {
@@ -148,6 +159,93 @@ const AdminDashboard = () => {
             onClick={() => navigate("/admin/carts")}
           />
         </div>
+
+        {/* Analytics / Growth Metrics */}
+        {analytics && analytics.growth && (
+          <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+            <h2 className="mb-4 text-sm font-black uppercase tracking-[0.2em] text-slate-400">
+              Analytics / Growth Metrics (Last 7 Days vs Previous)
+            </h2>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+              <GrowthCard title="Users Growth" value={analytics.growth.users} />
+              <GrowthCard title="Orders Growth" value={analytics.growth.orders} />
+              <GrowthCard title="Revenue Growth" value={analytics.growth.revenue} />
+            </div>
+          </div>
+        )}
+
+        {/* Graph and Top Sellers Row */}
+        {insights && (
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+            {/* Revenue Chart */}
+            <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm lg:col-span-2">
+               <h2 className="mb-4 text-sm font-black uppercase tracking-[0.2em] text-slate-400">Revenue Overview (Last 6 Months)</h2>
+               <div className="h-[300px] w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={insights.monthlyGraphData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                      <defs>
+                        <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#10b981" stopOpacity={0.3}/>
+                          <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                      <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 12}} dy={10} />
+                      <YAxis axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 12}} tickFormatter={(value) => `₹${value/1000}k`} dx={-10} />
+                      <RechartsTooltip cursor={{stroke: '#e2e8f0', strokeWidth: 2, fill: 'transparent'}} contentStyle={{borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'}} />
+                      <Area type="monotone" dataKey="revenue" stroke="#10b981" strokeWidth={3} fillOpacity={1} fill="url(#colorRevenue)" />
+                    </AreaChart>
+                  </ResponsiveContainer>
+               </div>
+            </div>
+
+            {/* Top Seeds & Conversion */}
+            <div className="flex flex-col gap-6">
+              {/* Conversion Card */}
+              <div className="rounded-3xl border border-slate-200 bg-linear-to-br from-indigo-500 to-purple-600 p-6 text-white shadow-lg">
+                <div className="mb-4 flex items-center justify-between">
+                  <p className="text-xs font-black uppercase tracking-[0.2em] text-indigo-100">Conversion Rate</p>
+                  <Target className="h-6 w-6 text-indigo-200" />
+                </div>
+                <h3 className="text-4xl font-black">{insights.conversionRate}%</h3>
+                <p className="mt-2 text-sm font-medium text-indigo-100">
+                  {insights.totalBuyers} buyers out of {insights.totalUsers} users
+                </p>
+              </div>
+
+              {/* Top Seeds */}
+              <div className="flex flex-1 flex-col overflow-hidden rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+                 <h2 className="mb-4 text-sm font-black uppercase tracking-[0.2em] text-slate-400">Top Selling Seeds</h2>
+                 <div className="flex flex-col gap-4 overflow-y-auto pr-2">
+                    {insights.topSellingSeeds?.map((seed) => (
+                      <div key={seed._id} className="flex items-center justify-between">
+                         <div className="flex items-center gap-3">
+                           <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-slate-100">
+                             <img 
+                               src={seed.image?.startsWith('http') ? seed.image : (seed.image?.startsWith('/') ? `http://localhost:5000${seed.image}` : `http://localhost:5000/uploads/${seed.image}`)} 
+                               alt={seed.name} 
+                               className="h-full w-full object-cover" 
+                               onError={(e) => { e.target.src = 'https://placehold.co/100x100?text=No+Img' }} 
+                             />
+                           </div>
+                           <div>
+                             <p className="line-clamp-1 text-sm font-bold text-slate-800">{seed.name}</p>
+                             <p className="text-xs font-medium text-slate-400">{seed.totalQuantitySold} units</p>
+                           </div>
+                         </div>
+                         <div className="text-right">
+                           <p className="text-sm font-bold text-emerald-600">₹{seed.totalRevenue}</p>
+                         </div>
+                      </div>
+                    ))}
+                    {(!insights.topSellingSeeds || insights.topSellingSeeds.length === 0) && (
+                      <p className="text-sm text-slate-400">No data available</p>
+                    )}
+                 </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Orders + Payments Highlight Cards */}
         <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
@@ -380,5 +478,36 @@ const FeatureCard = ({ icon, title, value, description, gradient, onClick }) => 
     <p className="mt-3 text-sm font-medium text-white/80">{description}</p>
   </div>
 );
+
+const GrowthCard = ({ title, value }) => {
+  const isPositive = value >= 0;
+  const isZero = value === 0;
+
+  let colorClass = "text-emerald-600 bg-emerald-50";
+  let Icon = TrendingUp;
+
+  if (isZero) {
+    colorClass = "text-slate-600 bg-slate-50";
+  } else if (!isPositive) {
+    colorClass = "text-red-700 bg-red-50";
+    Icon = TrendingDown;
+  }
+
+  return (
+    <div className={`flex items-center gap-4 rounded-2xl p-4 ${colorClass}`}>
+      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-white shadow-sm">
+        <Icon className="h-6 w-6" />
+      </div>
+      <div>
+        <p className="text-xs font-black uppercase tracking-widest opacity-80">
+          {title}
+        </p>
+        <div className="mt-1 flex items-baseline gap-1">
+          <span className="text-2xl font-black">{isPositive ? "+" : ""}{value}%</span>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 export default AdminDashboard;
