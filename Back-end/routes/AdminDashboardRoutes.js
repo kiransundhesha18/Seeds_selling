@@ -98,6 +98,168 @@ router.get(
   }
 );
 
+// Analytics & Growth Metrics
+router.get(
+  "/api/admin/analytics",
+  authMiddleware,
+  adminMiddleware,
+  async (req, res) => {
+    try {
+      const today = new Date();
+      // End of today
+      today.setHours(23, 59, 59, 999);
+      
+      const sevenDaysAgo = new Date(today);
+      sevenDaysAgo.setDate(today.getDate() - 7);
+      sevenDaysAgo.setHours(0, 0, 0, 0);
+
+      const fourteenDaysAgo = new Date(today);
+      fourteenDaysAgo.setDate(today.getDate() - 14);
+      fourteenDaysAgo.setHours(0, 0, 0, 0);
+
+      const getStats = async (startDate, endDate) => {
+        const [users, orders, revenueResult] = await Promise.all([
+          User.countDocuments({ createdAt: { $gte: startDate, $lte: endDate } }),
+          Order.countDocuments({ createdAt: { $gte: startDate, $lte: endDate } }),
+          Payments.aggregate([
+            { $match: { paymentStatus: "success", createdAt: { $gte: startDate, $lte: endDate }, amount: { $ne: null } } },
+            { $group: { _id: null, total: { $sum: "$amount" } } },
+          ]),
+        ]);
+
+        return {
+          users,
+          orders,
+          revenue: revenueResult?.[0]?.total || 0,
+        };
+      };
+
+      const currentStats = await getStats(sevenDaysAgo, today);
+      const previousStats = await getStats(fourteenDaysAgo, new Date(sevenDaysAgo.getTime() - 1));
+
+      const calculateGrowth = (current, previous) => {
+        if (previous === 0) return current > 0 ? 100 : 0;
+        return Number((((current - previous) / previous) * 100).toFixed(2));
+      };
+
+      res.json({
+        current: currentStats,
+        previous: previousStats,
+        growth: {
+          users: calculateGrowth(currentStats.users, previousStats.users),
+          orders: calculateGrowth(currentStats.orders, previousStats.orders),
+          revenue: calculateGrowth(currentStats.revenue, previousStats.revenue),
+        },
+      });
+    } catch (err) {
+      console.error("ADMIN_ANALYTICS_ERROR:", err);
+      res.status(500).json({ message: "Server error fetching analytics" });
+    }
+  }
+);
+
+// Dashboard Insights (Conversion Rate, Top Seeds, Graphs Data)
+router.get(
+  "/api/admin/dashboard-insights",
+  authMiddleware,
+  adminMiddleware,
+  async (req, res) => {
+    try {
+      // 1. Conversion Rate
+      const totalUsers = await User.countDocuments();
+      const uniqueBuyers = await Order.distinct("userId");
+      const conversionRate = totalUsers > 0 ? ((uniqueBuyers.length / totalUsers) * 100).toFixed(2) : 0;
+
+      // 2. Top Selling Seeds (limit to 5)
+      const topSellingItems = await OrderItem.aggregate([
+        {
+          $group: {
+            _id: "$productId",
+            totalQuantitySold: { $sum: "$quantity" },
+            totalRevenue: { $sum: "$totalPrice" }
+          }
+        },
+        { $sort: { totalQuantitySold: -1 } },
+        { $limit: 5 },
+        {
+          $lookup: {
+            from: "products", // Ensure this matches actual DB collection name for products
+            localField: "_id",
+            foreignField: "_id",
+            as: "productDetails"
+          }
+        },
+        { $unwind: "$productDetails" }
+      ]);
+
+      const formattedTopSeeds = topSellingItems.map(item => ({
+        _id: item._id,
+        name: item.productDetails.name,
+        image: item.productDetails.imagePath || item.productDetails.image,
+        price: item.productDetails.price,
+        totalQuantitySold: item.totalQuantitySold,
+        totalRevenue: item.totalRevenue
+      }));
+
+      // 3. Graph Data (Last 6 Months Revenue)
+      const sixMonthsAgo = new Date();
+      sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 5);
+      sixMonthsAgo.setDate(1);
+      sixMonthsAgo.setHours(0, 0, 0, 0);
+
+      const monthlyGraphData = await Payments.aggregate([
+        {
+          $match: {
+            paymentStatus: "success",
+            createdAt: { $gte: sixMonthsAgo }
+          }
+        },
+        {
+          $group: {
+            _id: {
+              year: { $year: "$createdAt" },
+              month: { $month: "$createdAt" }
+            },
+            revenue: { $sum: "$amount" },
+            orders: { $sum: 1 }
+          }
+        },
+        { $sort: { "_id.year": 1, "_id.month": 1 } }
+      ]);
+
+      const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+      
+      const graphMonths = [];
+      let current = new Date(sixMonthsAgo);
+      for(let i=0; i<6; i++) {
+         const m = current.getMonth() + 1;
+         const y = current.getFullYear();
+         
+         const found = monthlyGraphData.find(d => d._id.month === m && d._id.year === y);
+         graphMonths.push({
+           name: monthNames[m - 1],
+           revenue: found ? found.revenue : 0,
+           orders: found ? found.orders : 0
+         });
+
+         current.setMonth(current.getMonth() + 1);
+      }
+
+      res.json({
+        conversionRate,
+        totalUsers,
+        totalBuyers: uniqueBuyers.length,
+        topSellingSeeds: formattedTopSeeds,
+        monthlyGraphData: graphMonths
+      });
+
+    } catch (err) {
+      console.error("DASHBOARD_INSIGHTS_ERROR:", err);
+      res.status(500).json({ message: "Server error fetching insights" });
+    }
+  }
+);
+
 // List users (basic info, no passwords)
 router.get(
   "/api/admin/users",
@@ -217,7 +379,27 @@ router.put(
         return res.status(404).json({ message: "Order not found" });
       }
 
-      if (orderStatus) order.orderStatus = orderStatus;
+      if (orderStatus) {
+        // If changing TO cancelled from something else, restore stock
+        if (orderStatus === "cancelled" && order.orderStatus !== "cancelled") {
+          const Payments = require("../models/PaymentModel");
+          const payment = await Payments.findOne({ orderId: order._id });
+          const stockWasReduced = payment && (payment.paymentMethod === "cod" || payment.paymentStatus === "success");
+
+          if (stockWasReduced) {
+            const itemsToRestore = await OrderItem.find({ orderId: order._id });
+            for (const item of itemsToRestore) {
+              if (item.productId) {
+                await Product.findByIdAndUpdate(
+                  item.productId,
+                  { $inc: { stock: item.quantity } }
+                );
+              }
+            }
+          }
+        }
+        order.orderStatus = orderStatus;
+      }
       await order.save();
 
       const updatedOrder = await Order.findById(order._id)
@@ -275,7 +457,8 @@ router.get(
         message: n.message,
         type: n.type,
         time: new Date(n.createdAt).toLocaleTimeString(),
-        read: n.isRead
+        read: n.isRead,
+        referenceId: n.referenceId || null
       }));
 
       res.json(mappedNotifications);
