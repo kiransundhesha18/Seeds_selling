@@ -5,7 +5,7 @@ import { useForm } from "react-hook-form";
 import { toast } from "react-toastify";
 import { AuthContext } from "../context/AuthContext";
 import { CartContext } from "../context/CartContext";
-import { Plus, Minus, Trash2, ShoppingBag, MapPin, ArrowLeft } from "lucide-react";
+import { Plus, Minus, Trash2, ShoppingBag, MapPin, ArrowLeft, CreditCard, Smartphone, Truck, CheckCircle } from "lucide-react";
 
 const API_URL = "http://localhost:5000";
 
@@ -530,6 +530,79 @@ const Checkout = () => {
                 </div>
               </div>
             </div>
+
+            {/* Payment Method Section */}
+            <div className="bg-white border border-slate-100 rounded-3xl shadow-sm p-6">
+              <h2 className="text-xl font-black text-slate-800 mb-6 flex items-center gap-2">
+                <CreditCard size={20} /> Payment Method
+              </h2>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Razorpay Option */}
+                <div 
+                  onClick={() => setPaymentMethod("razorpay")}
+                  className={`relative cursor-pointer rounded-2xl border-2 p-4 flex items-start gap-4 transition-all ${
+                    paymentMethod === "razorpay" 
+                      ? "border-green-500 bg-green-50/30" 
+                      : "border-slate-100 hover:border-slate-200"
+                  }`}
+                >
+                  <div className="bg-[#9333ea] rounded-xl p-3 shrink-0 text-white">
+                    <Smartphone size={24} />
+                  </div>
+                  <div className="pr-6">
+                    <h3 className={`font-black ${paymentMethod === "razorpay" ? "text-green-700" : "text-slate-800"}`}>
+                      UPI / Online Payment
+                    </h3>
+                    <p className="text-sm text-slate-500 mt-1 leading-snug">
+                      Pay via Google Pay, PhonePe, Cards, Net Banking<br />(Razorpay)
+                    </p>
+                  </div>
+                  {paymentMethod === "razorpay" && (
+                    <div className="absolute top-4 right-4">
+                      <CheckCircle size={20} className="fill-green-500 text-white" />
+                    </div>
+                  )}
+                </div>
+
+                {/* COD Option */}
+                <div 
+                  onClick={() => setPaymentMethod("cod")}
+                  className={`relative cursor-pointer rounded-2xl border-2 p-4 flex items-start gap-4 transition-all ${
+                    paymentMethod === "cod" 
+                      ? "border-green-500 bg-green-50/30" 
+                      : "border-slate-100 hover:border-slate-200"
+                  }`}
+                >
+                  <div className="bg-[#059669] rounded-xl p-3 shrink-0 text-white">
+                    <Truck size={24} />
+                  </div>
+                  <div className="pr-6">
+                    <h3 className={`font-black ${paymentMethod === "cod" ? "text-green-700" : "text-slate-800"}`}>
+                      Cash on Delivery
+                    </h3>
+                    <p className="text-sm text-slate-500 mt-1 leading-snug">
+                      Pay in cash when your order arrives at your door
+                    </p>
+                  </div>
+                  {paymentMethod === "cod" && (
+                    <div className="absolute top-4 right-4">
+                      <CheckCircle size={20} className="fill-green-500 text-white" />
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Info Banner for Razorpay */}
+              {paymentMethod === "razorpay" && (
+                <div className="mt-4 bg-[#f3edfb] rounded-xl p-4 flex items-center gap-3">
+                  <CreditCard size={20} className="text-[#7e22ce] shrink-0" />
+                  <p className="text-sm text-[#581c87] font-medium">
+                    Secure payment via <span className="font-bold">Razorpay</span>. Supports UPI, Debit/Credit Cards, Net Banking. Card details are never stored on our servers.
+                  </p>
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Right Summary Sidebar */}
@@ -544,17 +617,6 @@ const Checkout = () => {
                 <div className="flex justify-between text-slate-600 font-medium">
                   <span>Delivery Charge</span>
                   <span className="text-green-600 font-black">Free</span>
-                </div>
-                <div className="mt-4">
-                  <label className="text-sm font-black text-slate-700 mb-2 block">Payment Method</label>
-                  <select
-                    value={paymentMethod}
-                    onChange={(e) => setPaymentMethod(e.target.value)}
-                    className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-white"
-                  >
-                    <option value="razorpay">Razorpay</option>
-                    <option value="cod">Cash on Delivery (COD)</option>
-                  </select>
                 </div>
                 <div className="pt-3 border-t border-slate-100 flex justify-between text-slate-900">
                   <span className="font-black text-lg">Total</span>
