@@ -1,0 +1,101 @@
+====================================================
+NOTIFICATION SYSTEM CHANGES LOG
+====================================================
+
+Below is the complete list of files modified/created and the exact code injected into them to enable the new Notification system.
+
+----------------------------------------------------
+1) CREATED NEW FILE:
+Path: Back-end/models/NotificationModel.js
+----------------------------------------------------
+- Added Mongoose Schema to store notifications with fields: `message`, `type` ("order", "cancelled", "user_update"), and `isRead`.
+
+Code Added:
+```javascript
+const mongoose = require("mongoose");
+
+const notificationSchema = new mongoose.Schema(
+  {
+    message: { type: String, required: true },
+    type: { type: String, enum: ["order", "cancelled", "user_update"], required: true },
+    isRead: { type: Boolean, default: false }
+  },
+  { timestamps: true }
+);
+
+module.exports = mongoose.model("Notification", notificationSchema);
+```
+
+
+----------------------------------------------------
+2) MODIFIED FILE: 
+Path: Back-end/routes/AdminDashboardRoutes.js
+----------------------------------------------------
+- Injected `const Notification = require("../models/NotificationModel.js");` at the top.
+- Created `GET /api/admin/notifications` endpoint to fetch all unread notifications.
+- Created `DELETE /api/admin/notifications/:id` endpoint to mark a specific notification as read.
+
+Code Added (at the bottom before module.exports):
+```javascript
+// Admin: Get unread notifications
+router.get(
+  "/api/admin/notifications",
+...
+      const notifications = await Notification.find({ isRead: false })
+...
+);
+
+// Admin: Mark notification as read
+router.delete(
+  "/api/admin/notifications/:id",
+...
+```
+
+
+----------------------------------------------------
+3) MODIFIED FILE:
+Path: Back-end/controllers/orderController.js
+----------------------------------------------------
+- Injected `const Notification = require("../models/NotificationModel");` at the top.
+- In `createOrderFromCart()` (after order completion):
+  `await Notification.create({ message: "A new order has been placed by user snippet", type: "order" });`
+
+- In `cancelOrderByUser()`:
+  `await Notification.create({ message: "An order has been cancelled by the customer", type: "cancelled" });`
+
+- In `createBuyNowOrder()`:
+  `await Notification.create({ message: "A new Buy Now order has been placed", type: "order" });`
+
+- In `updateOrderAddress()`:
+  `await Notification.create({ message: "A user has updated their order address", type: "user_update" });`
+
+
+----------------------------------------------------
+4) MODIFIED FILE:
+Path: Back-end/controllers/paymentController.js
+----------------------------------------------------
+- Injected `const Notification = require("../models/NotificationModel");` at the top.
+- In `createRazorpayOrder()` (when a COD order is initialized):
+  `await Notification.create({ message: "A new COD order has been placed", type: "order" });`
+
+- In `verifyRazorpayPayment()` (when an online payment hits success success):
+  `await Notification.create({ message: "A new order has been placed via Razorpay", type: "order" });`
+
+
+----------------------------------------------------
+5) MODIFIED FILE:
+Path: Front-end/src/Component/admin/AdminLayout.jsx
+----------------------------------------------------
+- Completely rewrote the `pollNotifications` inside `useEffect` to fetch from `axios.get('/api/admin/notifications')` rather than the old `stats` logic. Time was reduced from 30000ms to 15000ms.
+- Added a `handleNotificationClick(e, notification)` function to capture clear clicks.
+- Updated the `notifications.map` render code. Added a new "Clear" button element explicitly for markings read without redirection:
+  ```javascript
+  <button 
+    onClick={(e) => handleNotificationClick(e, notification)} 
+    className="flex-shrink-0 text-xs font-bold text-slate-400 hover:text-green-600 bg-slate-100 hover:bg-green-100 px-2 py-1 rounded-md opacity-0 group-hover:opacity-100 transition-all"
+    title="Mark as read"
+  >
+    Clear
+  </button>
+  ```
+- Refactored `handleMarkAllAsRead` to issue DELETE requests for the entire array structure to safely wipe the database unread indicators at once.

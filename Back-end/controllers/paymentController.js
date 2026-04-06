@@ -5,6 +5,7 @@ const Product = require("../models/ProductModel");
 const Order = require("../models/OrderModel");
 const OrderItem = require("../models/OrderItemModel");
 const Payment = require("../models/PaymentModel");
+const Notification = require("../models/NotificationModel");
 const { validateAddress, saveShippingAddress } = require("../helpers/orderHelpers");
 
 const toNumber = (v) => {
@@ -125,6 +126,11 @@ exports.createRazorpayOrder = async (req, res) => {
         transactionId: `COD_${Date.now()}`,
       });
 
+      await Notification.create({
+        message: `A new COD order has been placed`,
+        type: "order"
+      });
+
       return res.status(201).json({
         message: "COD order placed successfully",
         orderId: order._id,
@@ -229,6 +235,11 @@ exports.verifyRazorpayPayment = async (req, res) => {
     );
 
     await reduceStockAndClearCart(userId, itemsWithProduct);
+
+    await Notification.create({
+      message: `A new order has been placed via Razorpay`,
+      type: "order"
+    });
 
     return res.status(200).json({ message: "Payment verified successfully", orderId });
   } catch (error) {

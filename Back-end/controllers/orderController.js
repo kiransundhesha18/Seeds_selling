@@ -3,6 +3,7 @@ const Order = require("../models/OrderModel");
 const OrderItem = require("../models/OrderItemModel");
 const Address = require("../models/AddressModel");
 const Product = require("../models/ProductModel");
+const Notification = require("../models/NotificationModel");
 
 const toNumber = (v) => {
   const n = Number(v);
@@ -85,6 +86,12 @@ exports.createOrderFromCart = async (req, res) => {
 
     // Clear cart after order
     await Cart.deleteMany({ userId });
+
+    // Create a notification for the admin
+    await Notification.create({
+      message: `A new order has been placed by user snippet`,
+      type: "order"
+    });
 
     return res.status(201).json({
       message: "Order created",
@@ -203,6 +210,12 @@ exports.updateOrderAddress = async (req, res) => {
     );
 
     const updatedOrder = await Order.findOne({ _id: id, userId }).populate("addressId");
+
+    await Notification.create({
+      message: `A user has updated their order address`,
+      type: "user_update"
+    });
+
     return res.status(200).json({ message: "Address updated", order: updatedOrder });
   } catch (error) {
     console.error("UPDATE_ORDER_ADDRESS_ERROR:", error);
@@ -263,6 +276,11 @@ exports.cancelOrderByUser = async (req, res) => {
       note: "Cancelled by customer",
     });
     await order.save();
+
+    await Notification.create({
+      message: `An order has been cancelled by the customer`,
+      type: "cancelled"
+    });
 
     const updatedOrder = await Order.findById(order._id)
       .populate("addressId")
@@ -358,6 +376,11 @@ exports.createBuyNowOrder = async (req, res) => {
     } else {
       await Cart.deleteOne({ _id: cartItem._id });
     }
+
+    await Notification.create({
+      message: `A new Buy Now order has been placed`,
+      type: "order"
+    });
 
     const populatedItems = [
       await OrderItem.findById(orderItem._id).populate(
