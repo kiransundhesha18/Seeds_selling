@@ -5,11 +5,11 @@ const notificationSchema = new mongoose.Schema(
     message: { type: String, required: true },
     type: { 
       type: String, 
-      enum: ["order", "cancelled", "user_update"], 
+      enum: ["order", "cancelled", "user_update", "low_stock"], 
       required: true 
     },
     referenceId: { type: mongoose.Schema.Types.ObjectId, refPath: 'onModel', required: false },
-    onModel: { type: String, required: false, enum: ['Order', 'User'] },
+    onModel: { type: String, required: false, enum: ['Order', 'User', 'Product'] },
     isRead: { type: Boolean, default: false }
   },
   { timestamps: true }

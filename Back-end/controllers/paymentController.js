@@ -67,6 +67,16 @@ async function reduceStockAndClearCart(userId, items) {
       if (remaining < 0) {
         throw new Error(`Only ${product.stock} items left in stock for ${product.name}`);
       }
+      
+      // Trigger low stock alert if stock drops to 10 or below
+      if (product.stock > 10 && remaining <= 10) {
+        await Notification.create({
+          message: `Low stock alert: ${product.name} is running low on inventory (only ${remaining} left)`,
+          type: "low_stock",
+          referenceId: product._id,
+          onModel: "Product"
+        });
+      }
     }
   }
 

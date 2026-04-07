@@ -79,6 +79,8 @@ const AdminLayout = () => {
       case 'cancelled':
       case 'user_update':
         return notification.referenceId ? `/admin/orders/${notification.referenceId}` : '/admin/orders';
+      case 'low_stock':
+        return '/admin/products';
       default:
         return '/admin';
     }
@@ -277,6 +279,8 @@ const AdminLayout = () => {
                               return <ShoppingCart className="h-4 w-4 text-blue-600" />;
                             case 'user_update':
                               return <Users className="h-4 w-4 text-green-600" />;
+                            case 'low_stock':
+                              return <Package className="h-4 w-4 text-orange-600" />;
                             default:
                               return <Bell className="h-4 w-4 text-gray-600" />;
                           }
@@ -290,6 +294,8 @@ const AdminLayout = () => {
                               return 'bg-red-100';
                             case 'user_update':
                               return 'bg-green-100';
+                            case 'low_stock':
+                              return 'bg-orange-100';
                             default:
                               return 'bg-gray-100';
                           }
