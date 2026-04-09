@@ -18,6 +18,7 @@ import {
   CheckCircle2,
   Target,
   Mail,
+  X
 } from "lucide-react";
 import { XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
 
@@ -31,6 +32,28 @@ const AdminDashboard = () => {
     contactMessages: [],
     loading: true,
   });
+
+  const [isMonthModalOpen, setIsMonthModalOpen] = useState(false);
+  const [modalMode, setModalMode] = useState("all"); // 'all', 'orders', or 'revenue'
+  const [selectedMonth, setSelectedMonth] = useState("");
+  const [monthInsights, setMonthInsights] = useState({ revenue: 0, orders: 0, topSeeds: [], loading: false });
+
+  const fetchMonthlyInsights = async (monthVal) => {
+    try {
+      setMonthInsights(prev => ({ ...prev, loading: true }));
+      const response = await axios.get(`/api/admin/monthly-insights?month=${monthVal}`);
+      setMonthInsights({ revenue: response.data.revenue, orders: response.data.orders, topSeeds: response.data.topSeeds, loading: false });
+    } catch (e) {
+      console.error(e);
+      setMonthInsights(prev => ({ ...prev, loading: false }));
+    }
+  };
+
+  useEffect(() => {
+    if (isMonthModalOpen && selectedMonth) {
+      fetchMonthlyInsights(selectedMonth);
+    }
+  }, [selectedMonth, isMonthModalOpen]);
 
   useEffect(() => {
     const loadDashboard = async () => {
@@ -84,7 +107,7 @@ const AdminDashboard = () => {
   const paidPaymentPercentage =
     totalPayments > 0 ? Math.round((totalPaidPayments / totalPayments) * 100) : 0;
 
-    
+
   const pendingPaymentPercentage =
     totalPayments > 0 ? Math.round((totalPendingPayments / totalPayments) * 100) : 0;
 
@@ -175,7 +198,7 @@ const AdminDashboard = () => {
         </div>
 
         {/* Analytics / Growth Metrics */}
-        {analytics && analytics.growth && (
+        {/*{analytics && analytics.growth && (
           <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
             <h2 className="mb-4 text-sm font-black uppercase tracking-[0.2em] text-slate-400">
               Analytics / Growth Metrics (Last 7 Days vs Previous)
@@ -186,12 +209,12 @@ const AdminDashboard = () => {
               <GrowthCard title="Revenue Growth" value={analytics.growth.revenue} />
             </div>
           </div>
-        )}
+        )}*/}
 
         {/* Graph and Top Sellers Row */}
         {insights && (
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-            {/* Revenue Chart */}
+            {/* Revenue Chart COMMENTED OUT
             <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm lg:col-span-2">
                <h2 className="mb-4 text-sm font-black uppercase tracking-[0.2em] text-slate-400">Revenue Overview (Last 6 Months)</h2>
                <div className="h-[300px] w-full">
@@ -212,11 +235,12 @@ const AdminDashboard = () => {
                   </ResponsiveContainer>
                </div>
             </div>
+            */}
 
             {/* Top Seeds & Conversion */}
-            <div className="flex flex-col gap-6">
+            <div className="flex flex-col gap-6 lg:col-span-3">
               {/* Conversion Card */}
-              <div className="rounded-3xl border border-slate-200 bg-linear-to-br from-indigo-500 to-purple-600 p-6 text-white shadow-lg">
+              {/*<div className="rounded-3xl border border-slate-200 bg-linear-to-br from-indigo-500 to-purple-600 p-6 text-white shadow-lg">
                 <div className="mb-4 flex items-center justify-between">
                   <p className="text-xs font-black uppercase tracking-[0.2em] text-indigo-100">Conversion Rate</p>
                   <Target className="h-6 w-6 text-indigo-200" />
@@ -225,7 +249,7 @@ const AdminDashboard = () => {
                 <p className="mt-2 text-sm font-medium text-indigo-100">
                   {insights.totalBuyers} buyers out of {insights.totalUsers} users
                 </p>
-              </div>
+              </div>*/}
 
               {/* Top Seeds */}
               <div className="flex flex-1 flex-col overflow-hidden rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
@@ -292,18 +316,42 @@ const AdminDashboard = () => {
                 title="Total Orders"
                 value={formatNumber(totalOrders)}
                 bg="bg-emerald-50"
+                onClick={() => {
+                  const now = new Date();
+                  const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+                  setSelectedMonth(currentMonth);
+                  setModalMode("orders");
+                  setIsMonthModalOpen(true);
+                }}
+                clickable={true}
               />
               <MiniInfoCard
                 icon={<CalendarDays className="h-5 w-5 text-sky-600" />}
                 title="This Month"
                 value={formatCurrency(monthlyRevenue)}
                 bg="bg-sky-50"
+                onClick={() => {
+                  const now = new Date();
+                  const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+                  setSelectedMonth(currentMonth);
+                  setModalMode("all");
+                  setIsMonthModalOpen(true);
+                }}
+                clickable={true}
               />
               <MiniInfoCard
                 icon={<TrendingUp className="h-5 w-5 text-violet-600" />}
                 title="Revenue"
                 value={formatCurrency(totalRevenue)}
                 bg="bg-violet-50"
+                onClick={() => {
+                  const now = new Date();
+                  const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+                  setSelectedMonth(currentMonth);
+                  setModalMode("revenue");
+                  setIsMonthModalOpen(true);
+                }}
+                clickable={true}
               />
             </div>
 
@@ -442,6 +490,75 @@ const AdminDashboard = () => {
           />
         </div>
       </div>
+
+      {/* Monthly Insights Modal */}
+      {isMonthModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="w-full max-w-md rounded-[2rem] bg-white p-8 shadow-2xl relative">
+             <button onClick={() => setIsMonthModalOpen(false)} className="absolute top-6 right-6 p-2 rounded-full hover:bg-slate-100 text-slate-400 hover:text-slate-700 transition">
+                <X className="h-5 w-5" />
+             </button>
+             <h2 className="text-2xl font-black text-slate-900 mb-2">Monthly Insights</h2>
+             <p className="text-sm font-medium text-slate-500 mb-6">Select a month to view detailed performance.</p>
+
+             <div className="mb-6">
+                <label className="block text-xs font-bold uppercase tracking-widest text-slate-400 mb-2">Select Month</label>
+                <input 
+                  type="month" 
+                  value={selectedMonth} 
+                  onChange={(e) => setSelectedMonth(e.target.value)} 
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 font-bold text-slate-800 outline-none focus:ring-2 focus:ring-sky-500/50"
+                />
+             </div>
+
+             {monthInsights.loading ? (
+                <div className="py-8 text-center text-slate-400 font-bold">Loading...</div>
+             ) : (
+                <div className="space-y-6">
+                  <div className={modalMode === "all" ? "grid grid-cols-2 gap-4" : "grid grid-cols-1 gap-4"}>
+                    {(modalMode === "all" || modalMode === "revenue") && (
+                      <div className="rounded-2xl bg-sky-50 p-5 border border-sky-100">
+                        <p className="text-[10px] font-black uppercase tracking-widest text-sky-600/70 mb-1">Total Revenue</p>
+                        <p className="text-2xl font-black text-sky-700 truncate">{formatCurrency(monthInsights.revenue)}</p>
+                      </div>
+                    )}
+                    {(modalMode === "all" || modalMode === "orders") && (
+                      <div className="rounded-2xl bg-emerald-50 p-5 border border-emerald-100">
+                        <p className="text-[10px] font-black uppercase tracking-widest text-emerald-600/70 mb-1">Total Orders</p>
+                        <p className="text-2xl font-black text-emerald-700 truncate">{formatNumber(monthInsights.orders)}</p>
+                      </div>
+                    )}
+                  </div>
+                  
+                  {modalMode === "all" && (
+                    <div>
+                      <h3 className="text-sm font-black uppercase tracking-widest text-slate-400 mb-4">Top Selling Seeds</h3>
+                      {monthInsights.topSeeds && monthInsights.topSeeds.length > 0 ? (
+                        <div className="space-y-3">
+                          {monthInsights.topSeeds.map((seed, idx) => (
+                             <div key={seed._id} className="flex items-center justify-between p-3 rounded-xl border border-slate-100 bg-white shadow-xs">
+                                <div className="flex items-center gap-3">
+                                   <div className="w-10 h-10 rounded-lg bg-emerald-100 text-emerald-600 flex items-center justify-center font-black text-xs shrink-0">#{idx+1}</div>
+                                   <div className="overflow-hidden">
+                                      <p className="font-bold text-slate-800 text-sm truncate">{seed.name}</p>
+                                      <p className="text-xs font-medium text-slate-500">{seed.totalQuantitySold} units</p>
+                                   </div>
+                                </div>
+                                <p className="font-bold text-emerald-600 text-sm">₹{seed.totalRevenue}</p>
+                             </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="text-center p-6 bg-slate-50 rounded-xl text-sm font-medium text-slate-400">No sales recorded for this month.</div>
+                      )}
+                    </div>
+                  )}
+                </div>
+             )}
+          </div>
+        </div>
+      )}
+
     </div>
   );
 };
@@ -474,8 +591,11 @@ const StatCard = ({ icon, label, value, color, onClick, extraLabel }) => (
   </div>
 );
 
-const MiniInfoCard = ({ icon, title, value, bg }) => (
-  <div className={`rounded-2xl ${bg} p-4`}>
+const MiniInfoCard = ({ icon, title, value, bg, onClick, clickable }) => (
+  <div 
+    onClick={onClick} 
+    className={`rounded-2xl ${bg} p-4 ${clickable ? 'cursor-pointer hover:shadow-md transition-all hover:scale-[1.02]' : ''}`}
+  >
     <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-2xl bg-white shadow-sm">
       {icon}
     </div>

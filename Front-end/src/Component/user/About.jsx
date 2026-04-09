@@ -53,7 +53,7 @@ const About = () => {
             <div className="absolute -inset-4 bg-linear-to-r from-green-400 to-emerald-600 rounded-[3rem] blur-xl opacity-20 group-hover:opacity-40 transition duration-1000"></div>
             <div className="relative rounded-[2.5rem] overflow-hidden shadow-2xl border-4 border-white">
                 <img 
-                    src="https://images.unsplash.com/photo-1595981267035-7b04d84b4f1e?q=80&w=2070" 
+                    src="https://plus.unsplash.com/premium_photo-1661962949590-1c248a9bbe6c?w=600&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8NXx8c2VlZCUyMHBsYW50YWlvbiUyMHdpdGglMjB0cmFjdG9yfGVufDB8fDB8fHww"
                     alt="Farmer inspecting crops" 
                     className="w-full h-auto object-cover transform group-hover:scale-110 transition duration-1000"
                 />
@@ -62,7 +62,7 @@ const About = () => {
                 </div>
             </div>
             {/* Floating Badge */}
-            <div className="absolute -bottom-8 -right-8 bg-white p-6 rounded-3xl shadow-xl flex items-center gap-4 border border-green-50 z-20 animate-bounce-slow">
+            <div className="absolute -bottom-20 -right-10 bg-white p-6 rounded-3xl shadow-xl flex items-center gap-4 border border-green-50 z-20 animate-bounce-slow">
                 <div className="w-16 h-16 rounded-2xl bg-green-100 text-green-600 flex items-center justify-center text-3xl">
                     <FontAwesomeIcon icon={faAward} />
                 </div>

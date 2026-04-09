@@ -12,6 +12,22 @@ const submitContactMessage = async (req, res) => {
       });
     }
 
+    // Server-side validation for the Message field
+    if (message.trim().length < 10) {
+      return res.status(400).send({
+        success: false,
+        message: "Minimum message length should be at least 10 characters.",
+      });
+    }
+
+    const messageRegex = /^[a-zA-Z0-9 \s@.,!?&'"()-]+$/;
+    if (!messageRegex.test(message)) {
+      return res.status(400).send({
+        success: false,
+        message: "Invalid characters are not allowed in the message.",
+      });
+    }
+
     const contact = new ContactModel({
       name,
       email,

@@ -491,4 +491,87 @@ router.delete(
   }
 );
 
+// Admin: Get Specific Monthly Insights
+router.get(
+  "/api/admin/monthly-insights",
+  authMiddleware,
+  adminMiddleware,
+  async (req, res) => {
+    try {
+      const { month } = req.query; // format: "YYYY-MM"
+      if (!month) {
+        return res.status(400).json({ message: "Month parameter is required (YYYY-MM)" });
+      }
+
+      const [yearStr, monthStr] = month.split("-");
+      const year = parseInt(yearStr);
+      const monthNum = parseInt(monthStr);
+
+      const startDate = new Date(year, monthNum - 1, 1);
+      const endDate = new Date(year, monthNum, 0, 23, 59, 59, 999);
+
+      // 1. Calculate revenue for that specific month
+      const revenueResult = await Payments.aggregate([
+        {
+          $match: {
+            paymentStatus: "success",
+            createdAt: { $gte: startDate, $lte: endDate },
+            amount: { $ne: null }
+          }
+        },
+        { $group: { _id: null, total: { $sum: "$amount" } } }
+      ]);
+      const revenue = revenueResult?.[0]?.total || 0;
+
+      // 2. Find top selling seed for that specific month
+      const ordersInMonth = await Order.find({
+        createdAt: { $gte: startDate, $lte: endDate }
+      }).select('_id');
+      
+      const orderIds = ordersInMonth.map(o => o._id);
+
+      const topSellingItems = await OrderItem.aggregate([
+        {
+          $match: { orderId: { $in: orderIds } }
+        },
+        {
+          $group: {
+            _id: "$productId",
+            totalQuantitySold: { $sum: "$quantity" },
+            totalRevenue: { $sum: "$totalPrice" }
+          }
+        },
+        { $sort: { totalQuantitySold: -1 } },
+        { $limit: 3 },
+        {
+          $lookup: {
+            from: "products",
+            localField: "_id",
+            foreignField: "_id",
+            as: "productDetails"
+          }
+        },
+        { $unwind: "$productDetails" }
+      ]);
+
+      const topSeeds = topSellingItems.map(item => ({
+        _id: item._id,
+        name: item.productDetails.name,
+        image: item.productDetails.imagePath || item.productDetails.image,
+        totalQuantitySold: item.totalQuantitySold,
+        totalRevenue: item.totalRevenue
+      }));
+
+      res.json({
+        revenue,
+        orders: orderIds.length,
+        topSeeds
+      });
+    } catch (err) {
+      console.error("MONTHLY_INSIGHTS_ERROR:", err);
+      res.status(500).json({ message: "Error fetching monthly insights" });
+    }
+  }
+);
+
 module.exports = router;
