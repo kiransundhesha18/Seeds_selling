@@ -50,7 +50,7 @@ const Home = () => {
     const fetchProducts = async () => {
       try {
         const res = await axios.get(`${API_URL}/api/admin/products`);
-        setFeaturedProducts(res.data.slice(0, 8));
+        setFeaturedProducts(res.data.slice(0, 16));
       } catch (error) {
         console.error("Error fetching products:", error);
       } finally {
@@ -158,27 +158,11 @@ const Home = () => {
             <div className="w-12 h-12 border-4 border-green-600/20 border-t-green-600 rounded-full animate-spin" />
           </div>
         ) : (
-          <Swiper
-            modules={[Navigation, Autoplay]}
-            spaceBetween={30}
-            slidesPerView={1}
-            navigation={{
-              prevEl: ".prev-btn",
-              nextEl: ".next-btn",
-            }}
-            autoplay={{ delay: 5000 }}
-            breakpoints={{
-              640: { slidesPerView: 2 },
-              1024: { slidesPerView: 4 },
-            }}
-            className="pb-10"
-          >
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 pb-10">
             {featuredProducts.map((product) => (
-              <SwiperSlide key={product._id}>
-                <ProductCard product={product} navigate={navigate} />
-              </SwiperSlide>
+              <ProductCard key={product._id} product={product} navigate={navigate} />
             ))}
-          </Swiper>
+          </div>
         )}
       </div>
       {/* --- CATEGORY SECTION --- */}

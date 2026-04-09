@@ -1,6 +1,6 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowRight, IndianRupee, Ban } from "lucide-react"; 
+import { ArrowRight, IndianRupee, Ban } from "lucide-react";
 
 const API_URL = "http://localhost:5000";
 
@@ -8,14 +8,14 @@ const ProductCard = ({ product }) => {
     const navigate = useNavigate();
 
     // Check if product is in-stock
-    const isOutOfStock =  product.stock <= 0;
+    const isOutOfStock = product.stock <= 0;
 
     //check if product is Inactive
-    const isInactive = product.status !== "active"; 
+    const isInactive = product.status !== "active";
 
     // If inactive, return null so nothing renders
     if (isInactive) return null;
-    
+
     const sellerPrice = Number(product.currentPrice) || 0;
     const Price = Number(product.price) || 0;
 
@@ -33,18 +33,18 @@ const ProductCard = ({ product }) => {
     return (
         <div className={`group bg-white rounded-3xl border border-slate-100 shadow-sm transition-all duration-500 overflow-hidden flex flex-col relative 
             ${isOutOfStock ? "opacity-75 grayscale-[0.5]" : "hover:shadow-2xl hover:shadow-green-900/5"}`}>
-            
+
             {/* Image Container */}
-            <div className="relative h-60 overflow-hidden bg-slate-100">
+            <div className="relative h-100 overflow-hidden bg-slate-100">
                 <img
                     src={imageSrc}
                     alt={product.name}
                     onClick={() => !isOutOfStock && navigate(`/category/${categoryName}/${productName}/${product._id}`, { state: product })}
                     className={`w-full h-full object-cover transition duration-500 ${!isOutOfStock && "group-hover:scale-110"}`}
                 />
-                
+
                 {/* Status Badges */}
-                <div className="absolute top-4 left-4 flex flex-col gap-2 z-10">
+                <div className="absolute top-4 right-4 flex flex-col items-end gap-2 z-10">
                     {isOutOfStock ? (
                         <span className="bg-slate-900 text-white text-[10px] font-black px-3 py-1 rounded-full shadow-lg uppercase tracking-wider">
                             Out of Stock
@@ -61,7 +61,7 @@ const ProductCard = ({ product }) => {
                             )}
                         </>
                     )}
-                    
+
                     <span className="bg-white/90 backdrop-blur-md text-slate-800 text-[10px] font-black px-3 py-1 rounded-full shadow-sm uppercase">
                         {product.weight} {product.unit}
                     </span>
@@ -70,16 +70,16 @@ const ProductCard = ({ product }) => {
                 {/* Out of Stock Overlay Text */}
                 {isOutOfStock && (
                     <div className="absolute inset-0 bg-slate-900/10 flex items-center justify-center">
-                         <div className="bg-white/80 backdrop-blur px-4 py-2 rounded-xl border border-white/50 shadow-xl">
+                        <div className="bg-white/80 backdrop-blur px-4 py-2 rounded-xl border border-white/50 shadow-xl">
                             <p className="text-slate-900 font-black text-sm uppercase">Currently Unavailable</p>
-                         </div>
+                        </div>
                     </div>
                 )}
             </div>
 
             {/* Content */}
-            <div className="p-6 flex flex-col grow">
-                <h3 className={`text-lg font-black transition-colors line-clamp-1 ${isOutOfStock ? "text-slate-500" : "text-slate-800 group-hover:text-green-600"}`}>
+            <div className="p-4 flex flex-col grow">
+                <h3 className={`text-base font-black transition-colors line-clamp-2 ${isOutOfStock ? "text-slate-500" : "text-slate-800 group-hover:text-green-600"}`}>
                     {product.name}
                 </h3>
                 {/* <p className="text-slate-400 text-xs mt-1 font-medium line-clamp-2 leading-relaxed">
@@ -97,13 +97,13 @@ const ProductCard = ({ product }) => {
                             )}
                         </span>
                     </div>
-                    
+
                     <button
                         disabled={isOutOfStock}
                         onClick={() => !isOutOfStock && navigate(`/category/${categoryName}/${productName}/${product._id}`, { state: product })}
-                        className={`p-4 rounded-2xl transition-all duration-300 shadow-lg flex items-center justify-center
-                            ${isOutOfStock 
-                                ? "bg-slate-100 text-slate-400 cursor-not-allowed" 
+                        className={`p-3 rounded-2xl transition-all duration-300 shadow-lg flex items-center justify-center
+                            ${isOutOfStock
+                                ? "bg-slate-100 text-slate-400 cursor-not-allowed"
                                 : "bg-slate-900 text-white hover:bg-green-600 shadow-slate-200 hover:shadow-green-200"}`}
                     >
                         {isOutOfStock ? <Ban size={20} /> : <ArrowRight size={20} />}

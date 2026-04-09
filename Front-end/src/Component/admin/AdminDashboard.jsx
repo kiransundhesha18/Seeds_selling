@@ -17,6 +17,7 @@ import {
   BarChart3,
   CheckCircle2,
   Target,
+  Mail,
 } from "lucide-react";
 import { XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
 
@@ -27,21 +28,24 @@ const AdminDashboard = () => {
     stats: {},
     analytics: null,
     insights: null,
+    contactMessages: [],
     loading: true,
   });
 
   useEffect(() => {
     const loadDashboard = async () => {
       try {
-        const [statsRes, analyticsRes, insightsRes] = await Promise.all([
+        const [statsRes, analyticsRes, insightsRes, contactRes] = await Promise.all([
           axios.get("/api/admin/stats"),
           axios.get("/api/admin/analytics").catch(() => ({ data: null })),
-          axios.get("/api/admin/dashboard-insights").catch(() => ({ data: null }))
+          axios.get("/api/admin/dashboard-insights").catch(() => ({ data: null })),
+          axios.get("/api/admin/contact").catch(() => ({ data: { messages: [] } }))
         ]);
         setData({
           stats: statsRes.data || {},
           analytics: analyticsRes.data || null,
           insights: insightsRes.data || null,
+          contactMessages: contactRes.data?.messages || [],
           loading: false,
         });
       } catch (e) {
@@ -53,7 +57,7 @@ const AdminDashboard = () => {
     loadDashboard();
   }, []);
 
-  const { stats, analytics, insights, loading } = data;
+  const { stats, analytics, insights, contactMessages, loading } = data;
 
   const formatCurrency = (amount) =>
     new Intl.NumberFormat("en-IN", {
@@ -74,6 +78,8 @@ const AdminDashboard = () => {
   const totalPaidPayments = Number(stats.totalPaidPayments || 0);
   const totalRevenue = Number(stats.totalRevenue || 0);
   const monthlyRevenue = Number(stats.monthlyRevenue || 0);
+  const totalMessages = contactMessages.length;
+  const unreadMessages = contactMessages.filter(m => m.status === "Unread").length;
 
   const paidPaymentPercentage =
     totalPayments > 0 ? Math.round((totalPaidPayments / totalPayments) * 100) : 0;
@@ -157,6 +163,14 @@ const AdminDashboard = () => {
             value={formatNumber(totalCartItems)}
             color="bg-orange-500"
             onClick={() => navigate("/admin/carts")}
+          />
+          <StatCard
+            icon={<Mail className="h-6 w-6 text-white" />}
+            label="Total Messages"
+            value={formatNumber(totalMessages)}
+            extraLabel={`${unreadMessages} Unread`}
+            color="bg-emerald-500"
+            onClick={() => navigate("/admin/messages")}
           />
         </div>
 
@@ -432,7 +446,7 @@ const AdminDashboard = () => {
   );
 };
 
-const StatCard = ({ icon, label, value, color, onClick }) => (
+const StatCard = ({ icon, label, value, color, onClick, extraLabel }) => (
   <div
     onClick={onClick}
     className="cursor-pointer rounded-3xl border border-slate-200 bg-white p-6 shadow-sm transition-all hover:-translate-y-1 hover:shadow-md active:scale-[0.98]"
@@ -443,8 +457,15 @@ const StatCard = ({ icon, label, value, color, onClick }) => (
       >
         {icon}
       </div>
-      <div>
-        <h2 className="text-3xl font-black tracking-tight text-slate-800">{value}</h2>
+      <div className="flex-1">
+        <div className="flex items-center justify-between">
+          <h2 className="text-3xl font-black tracking-tight text-slate-800">{value}</h2>
+          {extraLabel && (
+            <span className="text-[9px] font-black uppercase bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full">
+              {extraLabel}
+            </span>
+          )}
+        </div>
         <p className="mt-1 text-[11px] font-black uppercase tracking-[0.2em] text-slate-400">
           {label}
         </p>
