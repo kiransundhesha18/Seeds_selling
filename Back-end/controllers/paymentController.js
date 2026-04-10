@@ -6,6 +6,7 @@ const Order = require("../models/OrderModel");
 const OrderItem = require("../models/OrderItemModel");
 const Payment = require("../models/PaymentModel");
 const Notification = require("../models/NotificationModel");
+const User = require("../models/UserModel");
 const { validateAddress, saveShippingAddress } = require("../helpers/orderHelpers");
 
 const toNumber = (v) => {
@@ -50,7 +51,7 @@ async function fetchItemsForOrder(userId, isBuyNow, productId, quantity) {
   return items;
 }
 
-async function reduceStockAndClearCart(userId, items) {
+async function reduceStockAndClearCart(userId, items, isBuyNow) {
   const bulkOps = items.map((item) => ({
     updateOne: {
       filter: { _id: item.product._id, stock: { $gte: item.quantity } },
@@ -80,7 +81,24 @@ async function reduceStockAndClearCart(userId, items) {
     }
   }
 
-  await Cart.deleteMany({ userId });
+  if (isBuyNow) {
+    // For Buy Now, we don't clear the entire cart, but we can try to decrement the item if it exists in cart
+    for (const item of items) {
+      if (item.product && item.product._id) {
+         const cartItem = await Cart.findOne({ userId, productId: item.product._id });
+         if (cartItem) {
+            if (cartItem.quantity > item.quantity) {
+              cartItem.quantity -= item.quantity;
+              await cartItem.save();
+            } else {
+              await Cart.deleteOne({ _id: cartItem._id });
+            }
+         }
+      }
+    }
+  } else {
+    await Cart.deleteMany({ userId });
+  }
 }
 
 exports.createRazorpayOrder = async (req, res) => {
@@ -110,6 +128,7 @@ exports.createRazorpayOrder = async (req, res) => {
       totalAmount,
       orderStatus: "processing",
       paymentStatus: "pending",
+      paymentMethod,
     });
 
     const orderItems = await Promise.all(
@@ -125,7 +144,7 @@ exports.createRazorpayOrder = async (req, res) => {
     );
 
     if (paymentMethod === "cod") {
-      await reduceStockAndClearCart(userId, orderItemsData);
+      await reduceStockAndClearCart(userId, orderItemsData, isBuyNow);
       await Payment.create({
         orderId: order._id,
         userId,
@@ -246,7 +265,41 @@ exports.verifyRazorpayPayment = async (req, res) => {
       })
     );
 
-    await reduceStockAndClearCart(userId, itemsWithProduct);
+    // we need to know if the order was buy now. Since we don't store isBuyNow on the order,
+    // we can check if it had 1 item and compare, but actually it's better to store isBuyNow in the order.
+    // However, if we assume online orders clear the cart, it's safer to not clear the whole cart if we only process what was in the order.
+    // Since we don't know `isBuyNow` here easily without expanding the model, we can pass `isBuyNow = orderItems.length === 1 ? true : false` as an estimation
+    // But it's risky. Instead, let's just use `isBuyNow = false` for now or wait: if they checked out a cart, the cart items should be removed.
+    // If they checked out 'Buy Now', only that item was removed. 
+    // To be safe, we can just remove from cart EXACTLY what they bought!
+    // But reduceStockAndClearCart handles either true/false. Since we don't know, we'll assume `false` (clear cart) for now. 
+    // Wait, the API `/api/payment/create-order` creates the order. We can store `order.paymentMethod` and add an `orderType` or similar? 
+    // Actually, `Cart.deleteMany({ userId })` is what the old verify did. 
+    
+    // Instead of completely guessing isBuyNow on verify, let's look at how we can remove the bought items from the cart.
+    for (const oi of orderItems) {
+      const cartItem = await Cart.findOne({ userId, productId: oi.productId });
+      if (cartItem) {
+        if (cartItem.quantity > oi.quantity) {
+          cartItem.quantity -= oi.quantity;
+          await cartItem.save();
+        } else {
+          await Cart.deleteOne({ _id: cartItem._id });
+        }
+      }
+    }
+    // We already do the above in verify Razorpay instead of `deleteMany` to be perfectly safe for both buy-now and cart!
+    
+    // So for verify, we only reduce stock:
+    const bulkOps = itemsWithProduct.map((item) => ({
+      updateOne: {
+        filter: { _id: item.product._id, stock: { $gte: item.quantity } },
+        update: { $inc: { stock: -item.quantity } },
+      },
+    }));
+    if (bulkOps.length > 0) {
+       await Product.bulkWrite(bulkOps);
+    }
 
     await Notification.create({
       message: `A new order has been placed via Razorpay`,
@@ -254,6 +307,20 @@ exports.verifyRazorpayPayment = async (req, res) => {
       referenceId: orderId,
       onModel: "Order"
     });
+
+    const user = await User.findById(userId);
+    if (!order.invoiceGenerated) {
+       try {
+           const { generateInvoice } = require("../utils/invoiceService");
+           const { sendInvoiceEmail } = require("../utils/emailService");
+           
+           const invoicePath = await generateInvoice({ ...order.toObject(), paymentStatus: "paid" }, user, itemsWithProduct, paymentRecord);
+           const sent = await sendInvoiceEmail(user.email, order._id, invoicePath);
+           await Order.findByIdAndUpdate(order._id, { invoiceGenerated: true, invoiceSent: sent, invoicePath });
+       } catch (err) {
+           console.error("Invoice generation error:", err);
+       }
+    }
 
     return res.status(200).json({ message: "Payment verified successfully", orderId });
   } catch (error) {

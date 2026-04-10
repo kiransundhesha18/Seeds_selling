@@ -14,6 +14,7 @@ const Cart = () => {
     cart,
     incrementQuantity,
     decrementQuantity,
+    updateQuantity,
     removeFromCart,
     totalPrice,
   } = useContext(CartContext);
@@ -131,7 +132,7 @@ const Cart = () => {
                       
                     </h2>
                     <p className="text-slate-600 text-sm font-bold uppercase tracking-widest mt-1">
-                      {item.weight} {item.unit}
+                      {item.weight || (item.productId?.weight)} {item.unit || (item.productId?.unit)}
                     </p>
 
                     {/* Conditional Rendering for Availability */}
@@ -147,7 +148,20 @@ const Cart = () => {
                         >
                           <Minus size={16} strokeWidth={3} />
                         </button>
-                        <span className="w-10 text-center font-black text-slate-800">{item.quantity}</span>
+                        <input
+                          type="number"
+                          min="1"
+                          max={currentStock}
+                          value={item.quantity}
+                          onChange={(e) => {
+                            const val = parseInt(e.target.value);
+                            if (!isNaN(val)) {
+                              const sanitizedVal = Math.max(1, Math.min(val, currentStock));
+                              updateQuantity(item._id, sanitizedVal);
+                            }
+                          }}
+                          className="w-12 text-center font-black text-slate-800 bg-transparent border-none focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                        />
                         <button
                           onClick={() => incrementQuantity(item._id, item.quantity)}
                           disabled={item.quantity >= currentStock}

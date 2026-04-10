@@ -28,6 +28,30 @@ const orderSchema = new mongoose.Schema({
     default: "pending"
   },
 
+  paymentMethod: {
+    type: String,
+    enum: ["razorpay", "cod"]
+  },
+
+  invoiceGenerated: {
+    type: Boolean,
+    default: false
+  },
+
+  invoiceSent: {
+    type: Boolean,
+    default: false
+  },
+
+  invoicePath: {
+    type: String
+  },
+
+  emailRetryCount: {
+    type: Number,
+    default: 0
+  },
+
   trackingNumber: {
     type: String,
     default: ""

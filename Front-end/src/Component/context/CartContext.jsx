@@ -74,6 +74,15 @@ export const CartProvider = ({ children }) => {
     }
   };
 
+  const updateQuantity = async (itemId, newQty) => {
+    try {
+      await axios.put(`${API_URL}/api/cart/update/${itemId}`, { quantity: newQty });
+      fetchCart();
+    } catch (error) {
+      console.error("Update Error", error);
+    }
+  };
+
   const removeFromCart = async (itemId) => {
     try {
       await axios.delete(`${API_URL}/api/cart/remove/${itemId}`);
@@ -91,6 +100,7 @@ export const CartProvider = ({ children }) => {
         addToCart,
         incrementQuantity,
         decrementQuantity,
+        updateQuantity,
         removeFromCart,
         totalPrice,
         reloadCart: fetchCart

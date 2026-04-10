@@ -399,6 +399,38 @@ router.put(
           }
         }
         order.orderStatus = orderStatus;
+
+        if (orderStatus === "delivered") {
+          const Payments = require("../models/PaymentModel");
+          const payment = await Payments.findOne({ orderId: order._id });
+          const isCod = order.paymentMethod === "cod" || (payment && payment.paymentMethod === "cod");
+
+          if (isCod) {
+            order.paymentStatus = "paid";
+            if (payment) {
+              payment.paymentStatus = "success";
+              await payment.save();
+            }
+
+            if (!order.invoiceGenerated) {
+              try {
+                const { generateInvoice } = require("../utils/invoiceService");
+                const { sendInvoiceEmail } = require("../utils/emailService");
+                const user = await User.findById(order.userId);
+                const items = await OrderItem.find({ orderId: order._id }).populate("productId");
+
+                const invoicePath = await generateInvoice({ ...order.toObject(), paymentStatus: "paid" }, user, items, payment);
+                const sent = await sendInvoiceEmail(user.email, order._id, invoicePath);
+
+                order.invoiceGenerated = true;
+                order.invoiceSent = sent;
+                order.invoicePath = invoicePath;
+              } catch (err) {
+                console.error("Invoice generation error on delivery:", err);
+              }
+            }
+          }
+        }
       }
       await order.save();
 

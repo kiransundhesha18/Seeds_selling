@@ -70,6 +70,7 @@ exports.createOrderFromCart = async (req, res) => {
       totalAmount,
       orderStatus: "processing",
       paymentStatus: "pending",
+      paymentMethod: req.body?.paymentMethod || "cod"
     });
 
     const orderItems = await Promise.all(
@@ -383,6 +384,7 @@ exports.createBuyNowOrder = async (req, res) => {
       totalAmount: totalPrice,
       orderStatus: "processing",
       paymentStatus: "pending",
+      paymentMethod: req.body?.paymentMethod || "cod"
     });
 
     const orderItem = await OrderItem.create({

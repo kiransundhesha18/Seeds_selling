@@ -127,7 +127,7 @@ export const Navbar = () => {
                             </div>
 
                             <h1 className="text-xl md:text-2xl font-black tracking-tight uppercase text-white leading-none">
-                                Seed<span className="text-green-500">Store</span>
+                                Agri<span className="text-green-500">Farm</span>
                             </h1>
                         </Link>
                         <div className="flex items-center gap-4 lg:hidden">

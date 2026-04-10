@@ -98,11 +98,11 @@ const AdminProducts = () => {
     const { name, value } = e.target;
 
     if (name === "name") {
-      const regex = /^[a-zA-Z0-9\s]*$/;
-      if (!regex.test(value) || value.length > 30) return;
+      const regex = /^[a-zA-Z0-9\s\-\&\.\/\(\)\,\'\"]*$/;
+      if (!regex.test(value) || value.length > 100) return; // Increased length for names if needed, or stick to 30 but allow symbols
     }
 
-    if (name === "description" && value.length > 1000) return;
+    // Removed strict length return to allow standard maxLength and truncation behavior
 
     if (
       (name === "price" ||
@@ -570,27 +570,52 @@ const AdminProducts = () => {
                 }}
                 onKeyDown={(e) => {
                   if (e.key === "Enter") {
-                    e.preventDefault();
-
                     const textarea = e.target;
                     const start = textarea.selectionStart;
-                    const end = textarea.selectionEnd;
                     const value = form.description || "";
+                    
+                    // Find the current line
+                    const lines = value.substring(0, start).split('\n');
+                    const currentLine = lines[lines.length - 1];
 
-                    const newValue =
-                      value.substring(0, start) + "\n• " + value.substring(end);
+                    // Smarter bullet logic: handles starting, continuing, and ending lists
+                    const isBulletLine = currentLine.trim().startsWith('•') || 
+                                       currentLine.trim().startsWith('*') || 
+                                       currentLine.trim().startsWith('-');
 
-                    if (newValue.length <= 1000) {
-                      setForm((prev) => ({
-                        ...prev,
-                        description: newValue,
-                      }));
+                    if (isBulletLine || (value.trim() === "" && start === 0)) {
+                      e.preventDefault();
+                      const end = textarea.selectionEnd;
+                      let newValue;
+                      let cursorOffset;
 
-                      setTimeout(() => {
-                        textarea.selectionStart = textarea.selectionEnd = start + 3;
-                        autoResizeTextarea();
-                      }, 0);
+                      // If terminating a bullet (Enter on line with only a bullet trigger)
+                      if (isBulletLine && (currentLine.trim() === '•' || currentLine.trim() === '*' || currentLine.trim() === '-')) {
+                        const beforeLine = value.substring(0, start - currentLine.length);
+                        newValue = beforeLine + "\n" + value.substring(end);
+                        cursorOffset = 1;
+                      } else {
+                        // Otherwise, add/continue the bulleted list
+                        newValue = value.substring(0, start) + "\n• " + value.substring(end);
+                        cursorOffset = 3;
+                      }
+
+                      if (newValue.length <= 1000) {
+                        setForm((prev) => ({
+                          ...prev,
+                          description: newValue,
+                        }));
+
+                        setTimeout(() => {
+                          textarea.selectionStart = textarea.selectionEnd = 
+                            (isBulletLine && (currentLine.trim() === '•' || currentLine.trim() === '*' || currentLine.trim() === '-')) 
+                            ? start - currentLine.length + cursorOffset 
+                            : start + cursorOffset;
+                          autoResizeTextarea();
+                        }, 0);
+                      }
                     }
+                    // Otherwise let the default Enter behavior work normally
                   }
                 }}
                 rows={3}

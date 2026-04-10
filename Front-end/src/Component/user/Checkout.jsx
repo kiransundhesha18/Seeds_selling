@@ -330,7 +330,12 @@ const Checkout = () => {
                         <div className="flex items-center gap-4 w-full sm:w-auto">
                           {/* Image with Link */}
                           <div
-                            onClick={() => navigate(`/category/${item.productId?.categoryId.name}/${item.productId.name}/${item.productId?._id}`)}
+                            onClick={() => {
+                                if (!item.productId) return;
+                                const categoryName = item.productId?.categoryId?.name || "seeds";
+                                const productName = item.productId?.name || item.name || "product";
+                                navigate(`/category/${categoryName}/${productName}/${item.productId?._id}`);
+                            }}
                             className="w-20 h-20 rounded-xl bg-slate-50 border border-slate-100 overflow-hidden flex items-center justify-center shrink-0 cursor-pointer hover:border-indigo-500 transition-all group"
                           >
                             <img
@@ -343,17 +348,22 @@ const Checkout = () => {
                           <div>
                             {/* Name with Link */}
                             <p
-                              onClick={() => navigate(`/category/${item.productId?.categoryId.name}/${item.productId.name}/${item.productId?._id}`)}
+                              onClick={() => {
+                                if (!item.productId) return;
+                                const categoryName = item.productId?.categoryId?.name || "seeds";
+                                const productName = item.productId?.name || item.name || "product";
+                                navigate(`/category/${categoryName}/${productName}/${item.productId?._id}`);
+                              }}
                               className="font-black text-slate-900 cursor-pointer hover:text-green-600 transition-colors"
                             >
-                              {item.name}
+                              {item.productId?.name || item.name}
                             </p>
 
                             <p className="text-xs text-slate-500 font-bold uppercase tracking-widest">
-                              {item.weight} {item.unit}
+                              {item.weight || item.productId?.weight} {item.unit || item.productId?.unit}
                             </p>
                             <p className="text-sm text-slate-500 font-medium mt-1">
-                              Price: ₹{item.currentPrice ?? item.price}
+                              Price: ₹{item.currentPrice ?? item.productId?.currentPrice ?? item.productId?.price ?? item.price}
                             </p>
                           </div>
                         </div>

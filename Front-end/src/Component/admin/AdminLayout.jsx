@@ -167,7 +167,7 @@ const AdminLayout = () => {
             </div>
             <h1 className="text-xl font-black tracking-tighter italic uppercase"
 
-            >Seed<span className="text-green-500">Store</span></h1>
+            >Agri<span className="text-green-500">Farm</span></h1>
           </div>
 
           {user && (
